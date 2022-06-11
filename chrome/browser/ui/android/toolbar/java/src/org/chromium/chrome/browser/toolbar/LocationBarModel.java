@@ -8,7 +8,6 @@ import android.content.Context;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 
-import androidx.annotation.ColorInt;
 import androidx.annotation.ColorRes;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
@@ -27,10 +26,7 @@ import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
 import org.chromium.chrome.browser.omnibox.SearchEngineLogoUtils;
 import org.chromium.chrome.browser.omnibox.UrlBarData;
-import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
-import org.chromium.chrome.browser.omnibox.styles.OmniboxTheme;
 import org.chromium.chrome.browser.paint_preview.TabbedPaintPreview;
-import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TrustedCdn;
@@ -44,10 +40,8 @@ import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.OmniboxUrlEmphasizer;
 import org.chromium.components.omnibox.SecurityStatusIcon;
-import org.chromium.components.prefs.PrefService;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.components.security_state.SecurityStateModel;
-import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.util.ColorUtils;
@@ -134,7 +128,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         mUrlFormatter = urlFormatter;
         mProfileProvider = profileProvider;
         mOfflineStatus = offlineStatus;
-        mPrimaryColor = ChromeColors.getDefaultThemeColor(context, false);
+        mPrimaryColor = ChromeColors.getDefaultThemeColor(context.getResources(), false);
         mSearchEngineLogoUtils = searchEngineLogoUtils;
     }
 
@@ -306,20 +300,10 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
 
             ChromeAutocompleteSchemeClassifier chromeAutocompleteSchemeClassifier =
                     new ChromeAutocompleteSchemeClassifier(getProfile());
-            final @OmniboxTheme int omniboxTheme = OmniboxResourceProvider.getOmniboxTheme(
-                    mContext, isIncognito(), getPrimaryColor());
-            final @ColorInt int nonEmphasizedColor =
-                    OmniboxResourceProvider.getUrlBarSecondaryTextColor(mContext, omniboxTheme);
-            final @ColorInt int emphasizedColor =
-                    OmniboxResourceProvider.getUrlBarPrimaryTextColor(mContext, omniboxTheme);
-            final @ColorInt int dangerColor =
-                    OmniboxResourceProvider.getUrlBarDangerColor(mContext, omniboxTheme);
-            final @ColorInt int secureColor =
-                    OmniboxResourceProvider.getUrlBarSecureColor(mContext, omniboxTheme);
-            OmniboxUrlEmphasizer.emphasizeUrl(spannableDisplayText,
+            OmniboxUrlEmphasizer.emphasizeUrl(spannableDisplayText, mContext.getResources(),
                     chromeAutocompleteSchemeClassifier, getSecurityLevel(), isInternalPage,
-                    shouldEmphasizeHttpsScheme(), nonEmphasizedColor, emphasizedColor, dangerColor,
-                    secureColor);
+                    !ColorUtils.shouldUseLightForegroundOnBackground(getPrimaryColor()),
+                    shouldEmphasizeHttpsScheme());
             chromeAutocompleteSchemeClassifier.destroy();
         }
 
@@ -431,14 +415,15 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
 
     private void updateUsingBrandColor() {
         mIsUsingBrandColor = !isIncognito()
-                && mPrimaryColor != ChromeColors.getDefaultThemeColor(mContext, isIncognito())
+                && mPrimaryColor
+                        != ChromeColors.getDefaultThemeColor(mContext.getResources(), isIncognito())
                 && hasTab() && !mTab.isNativePage();
     }
 
     @Override
     public int getPrimaryColor() {
         return isInOverviewAndShowingOmnibox()
-                ? ChromeColors.getDefaultThemeColor(mContext, isIncognito())
+                ? ChromeColors.getDefaultThemeColor(mContext.getResources(), isIncognito())
                 : mPrimaryColor;
     }
 
@@ -540,11 +525,6 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
     }
 
     @VisibleForTesting
-    PrefService getPrefService() {
-        return UserPrefs.get(Profile.getLastUsedRegularProfile());
-    }
-
-    @VisibleForTesting
     @DrawableRes
     int getSecurityIconResource(int securityLevel, boolean isSmallDevice, boolean isOfflinePage,
             boolean isPaintPreview) {
@@ -569,23 +549,11 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
                 !mSearchEngineLogoUtils.shouldShowSearchEngineLogo(isIncognito())
                 || mNtpDelegate.isCurrentlyVisible();
 
-        boolean useLockIconEnabled = false;
-        if (mNativeLocationBarModelAndroid != 0) {
-            PrefService prefService = getPrefService();
-            if (prefService.isManagedPreference(
-                        ChromePreferenceKeys.LOCK_ICON_IN_ADDRESS_BAR_ENABLED)) {
-                useLockIconEnabled = prefService.getBoolean(
-                        ChromePreferenceKeys.LOCK_ICON_IN_ADDRESS_BAR_ENABLED);
-            }
-        }
-
-        boolean useUpdatedConnectionSecurityIndicators = FeatureList.isInitialized()
-                && ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.OMNIBOX_UPDATED_CONNECTION_SECURITY_INDICATORS)
-                && !useLockIconEnabled && !(hasTab() && mTab.isCustomTab());
-
         return SecurityStatusIcon.getSecurityIconResource(securityLevel, isSmallDevice,
-                skipIconForNeutralState, useUpdatedConnectionSecurityIndicators);
+                skipIconForNeutralState,
+                FeatureList.isInitialized()
+                        && ChromeFeatureList.isEnabled(
+                                ChromeFeatureList.OMNIBOX_UPDATED_CONNECTION_SECURITY_INDICATORS));
     }
 
     @Override

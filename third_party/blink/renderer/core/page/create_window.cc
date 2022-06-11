@@ -50,7 +50,7 @@
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/number_parsing_options.h"
@@ -81,8 +81,12 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
     return window_features;
 
   bool ui_features_were_disabled = false;
-  enum class PopupState { kUnknown, kPopup, kWindow };
-  PopupState popup_state = PopupState::kUnknown;
+
+  // See crbug.com/1192701 for details, but we're working on changing the
+  // popup-triggering conditions for window.open. This bool represents the "new"
+  // state after this change.
+  bool is_popup_with_new_behavior = false;
+
   unsigned key_begin, key_end;
   unsigned value_begin, value_end;
 
@@ -182,9 +186,8 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
     } else if (key_string == "width" || key_string == "innerwidth") {
       window_features.width_set = true;
       window_features.width = value;
-    } else if (key_string == "popup") {
-      // The 'popup' property explicitly triggers a popup.
-      popup_state = value ? PopupState::kPopup : PopupState::kWindow;
+      // Width will be the only trigger for a popup.
+      is_popup_with_new_behavior = true;
     } else if (key_string == "height" || key_string == "innerheight") {
       window_features.height_set = true;
       window_features.height = value;
@@ -221,20 +224,17 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
     }
   }
 
-  if (RuntimeEnabledFeatures::WindowOpenNewPopupBehaviorEnabled()) {
-    bool is_popup = popup_state == PopupState::kPopup;
-    if (popup_state == PopupState::kUnknown) {
-      is_popup = !window_features.tool_bar_visible ||
-                 !window_features.menu_bar_visible ||
-                 !window_features.resizable ||
-                 !window_features.scrollbars_visible ||
-                 !window_features.status_bar_visible;
+  // Existing logic from NavigationPolicy::NavigationPolicyForCreateWindow():
+  if (dom_window && dom_window->document()) {
+    bool is_popup_with_current_behavior = !window_features.tool_bar_visible ||
+                                          !window_features.status_bar_visible ||
+                                          !window_features.scrollbars_visible ||
+                                          !window_features.menu_bar_visible ||
+                                          !window_features.resizable;
+    if (is_popup_with_current_behavior != is_popup_with_new_behavior) {
+      UseCounter::Count(dom_window->document(),
+                        WebFeature::kWindowOpenNewPopupBehaviorMismatch);
     }
-    // If this is a popup, set all BarProps to false, and vice versa.
-    window_features.tool_bar_visible = !is_popup;
-    window_features.menu_bar_visible = !is_popup;
-    window_features.scrollbars_visible = !is_popup;
-    window_features.status_bar_visible = !is_popup;
   }
 
   if (window_features.noreferrer)
@@ -369,13 +369,13 @@ Frame* CreateNewWindow(LocalFrame& opener_frame,
 
   IntRect window_rect = page->GetChromeClient().RootWindowRect(frame);
   if (features.x_set)
-    window_rect.set_x(features.x);
+    window_rect.SetX(features.x);
   if (features.y_set)
-    window_rect.set_y(features.y);
+    window_rect.SetY(features.y);
   if (features.width_set)
-    window_rect.set_width(features.width);
+    window_rect.SetWidth(features.width);
   if (features.height_set)
-    window_rect.set_height(features.height);
+    window_rect.SetHeight(features.height);
 
   IntRect rect = page->GetChromeClient().CalculateWindowRectWithAdjustment(
       window_rect, frame, opener_frame);

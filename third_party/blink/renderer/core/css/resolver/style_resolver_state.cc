@@ -63,7 +63,6 @@ StyleResolverState::StyleResolverState(
                         ? ElementType::kPseudoElement
                         : ElementType::kElement),
       nearest_container_(style_recalc_context.container),
-      is_for_highlight_(IsHighlightPseudoElement(style_request.pseudo_id)),
       can_cache_base_style_(blink::CanCacheBaseStyle(style_request)) {
   DCHECK(!!parent_style_ == !!layout_parent_style_);
 
@@ -84,13 +83,6 @@ StyleResolverState::~StyleResolverState() {
   // For performance reasons, explicitly clear HeapVectors and
   // HeapHashMaps to avoid giving a pressure on Oilpan's GC.
   animation_update_.Clear();
-}
-
-bool StyleResolverState::IsInheritedForUnset(
-    const CSSProperty& property) const {
-  return property.IsInherited() ||
-         (is_for_highlight_ &&
-          RuntimeEnabledFeatures::HighlightInheritanceEnabled());
 }
 
 void StyleResolverState::SetStyle(scoped_refptr<ComputedStyle> style) {
@@ -210,8 +202,11 @@ Element* StyleResolverState::GetAnimatingElement() const {
 }
 
 const CSSValue& StyleResolverState::ResolveLightDarkPair(
+    const CSSProperty& property,
     const CSSValue& value) {
   if (const auto* pair = DynamicTo<CSSLightDarkValuePair>(value)) {
+    if (!property.IsInherited())
+      Style()->SetHasNonInheritedLightDarkValue();
     if (Style()->UsedColorScheme() == mojom::blink::ColorScheme::kLight)
       return pair->First();
     return pair->Second();

@@ -24,7 +24,6 @@ import org.chromium.chrome.browser.omnibox.UrlBar.UrlTextChangeListener;
 import org.chromium.chrome.browser.omnibox.UrlBarCoordinator.SelectionState;
 import org.chromium.chrome.browser.omnibox.UrlBarProperties.AutocompleteText;
 import org.chromium.chrome.browser.omnibox.UrlBarProperties.UrlBarTextState;
-import org.chromium.chrome.browser.omnibox.styles.OmniboxTheme;
 import org.chromium.components.omnibox.OmniboxUrlEmphasizer.UrlEmphasisSpan;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -73,7 +72,7 @@ class UrlBarMediator
         mModel.set(UrlBarProperties.TEXT_CONTEXT_MENU_DELEGATE, this);
         mModel.set(UrlBarProperties.URL_TEXT_CHANGE_LISTENER, this);
         mModel.set(UrlBarProperties.TEXT_CHANGED_LISTENER, this);
-        setOmniboxTheme(OmniboxTheme.DEFAULT);
+        setUseDarkTextColors(true);
     }
 
     public void destroy() {
@@ -224,26 +223,15 @@ class UrlBarMediator
     }
 
     /**
-     * Sets the omnibox theme.
+     * Sets whether to use dark text colors.
      *
-     * @param omniboxTheme The {@link @OmniboxTheme}.
      * @return Whether this resulted in a change from the previous value.
      */
-    public boolean setOmniboxTheme(@OmniboxTheme int omniboxTheme) {
+    public boolean setUseDarkTextColors(boolean useDarkColors) {
         // TODO(bauerb): Make clients observe the property instead of checking the return value.
-        @OmniboxTheme
-        int previousValue = mModel.get(UrlBarProperties.OMNIBOX_THEME);
-        mModel.set(UrlBarProperties.OMNIBOX_THEME, omniboxTheme);
-        return previousValue != omniboxTheme;
-    }
-
-    /**
-     * Sets whether to use incognito colors.
-     *
-     * @param incognitoColorsEnabled Whether to use incognito colors.
-     */
-    public void setIncognitoColorsEnabled(boolean incognitoColorsEnabled) {
-        mModel.set(UrlBarProperties.INCOGNITO_COLORS_ENABLED, incognitoColorsEnabled);
+        boolean previousValue = mModel.get(UrlBarProperties.USE_DARK_TEXT_COLORS);
+        mModel.set(UrlBarProperties.USE_DARK_TEXT_COLORS, useDarkColors);
+        return previousValue != useDarkColors;
     }
 
     /**

@@ -11,11 +11,11 @@ import 'chrome://resources/cr_elements/shared_vars_css.m.js';
 import 'chrome://resources/polymer/v3_0/paper-styles/color.js';
 import './pack_dialog.js';
 
-import {getToastManager} from 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.js';
-import {I18nMixin} from 'chrome://resources/js/i18n_mixin.js';
+import {getToastManager} from 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.m.js';
+import {I18nBehavior} from 'chrome://resources/js/i18n_behavior.m.js';
 import {listenOnce} from 'chrome://resources/js/util.m.js';
 import {IronA11yAnnouncer} from 'chrome://resources/polymer/v3_0/iron-a11y-announcer/iron-a11y-announcer.js';
-import {html, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {html, mixinBehaviors, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 export interface ToolbarDelegate {
   /**
@@ -38,7 +38,9 @@ interface ExtensionsToolbarElement {
   };
 }
 
-const ExtensionsToolbarElementBase = I18nMixin(PolymerElement);
+const ExtensionsToolbarElementBase =
+    mixinBehaviors([I18nBehavior], PolymerElement) as
+    {new (): PolymerElement & I18nBehavior};
 
 class ExtensionsToolbarElement extends ExtensionsToolbarElementBase {
   static get is() {
@@ -96,12 +98,10 @@ class ExtensionsToolbarElement extends ExtensionsToolbarElementBase {
   private showPackDialog_: boolean;
   private isUpdating_: boolean;
 
+
   ready() {
     super.ready();
     this.setAttribute('role', 'banner');
-    this.toggleAttribute(
-        'enable-branding-update',
-        document.documentElement.hasAttribute('enable-branding-update'));
   }
 
   private fire_(eventName: string, detail?: any) {
