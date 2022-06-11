@@ -49,7 +49,7 @@ jobs:
           body: |
             This is a test build initiated by ${{ github.actor }}.
 
-      - name: Uploading test apk (arm)
+      - name: Uploading test apk (arm64)
         if: github.event_name != 'pull_request'
         uses: actions/upload-release-asset@v1
         env:
@@ -57,7 +57,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./out.apk
-          asset_name: ${{ github.repository_owner }}.${{ github.event.repository.name }}.${{ steps.branch-name.outputs.current_branch }}.${{ github.run_id }}-unofficial-arm.apk
+          asset_name: ${{ github.repository_owner }}.${{ github.event.repository.name }}.${{ steps.branch-name.outputs.current_branch }}.${{ github.run_id }}-unofficial-arm64.apk
           asset_content_type: application/vnd.android.package-archive
 
       - name: Displaying download link
